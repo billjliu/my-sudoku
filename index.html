@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sudoku Mobile</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --cell-size: 10vw;
+            --max-cell-size: 45px;
+        }
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg-color); margin: 0; padding: 20px; touch-action: manipulation; }
+        #timer { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(9, 1fr); border: 2px solid black; background: black; gap: 1px; }
+        input { 
+            width: var(--cell-size); height: var(--cell-size); 
+            max-width: var(--max-cell-size); max-height: var(--max-cell-size);
+            text-align: center; font-size: 1.2rem; border: none; outline: none; background: white; 
+            appearance: none; -webkit-appearance: none; border-radius: 0;
+        }
+        /* Grid styling for 3x3 blocks */
+        input:nth-child(3n) { border-right: 2px solid black; }
+        .grid > input:nth-child(n+19):nth-child(-n+27),
+        .grid > input:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid black; }
+        
+        .controls { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 400px; }
+        button { padding: 12px; font-size: 1rem; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+        .btn-new { background: #ff9800; }
+        .btn-hint { background: #2196f3; }
+        .btn-solve { background: #4caf50; }
+        .btn-check { background: #e91e63; }
+        select { padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; grid-column: span 2; }
+        .hint { color: blue; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+
+<div id="timer">00:00</div>
+<div class="grid" id="sudoku-grid"></div>
+
+<div class="controls">
+    <select id="difficulty">
+        <option value="45">Easy</option>
+        <option value="35" selected>Medium</option>
+        <option value="25">Hard</option>
+    </select>
+    <button class="btn-new" onclick="newGame()">New Game</button>
+    <button class="btn-check" onclick="checkMistakes()">Check</button>
+    <button class="btn-hint" onclick="getHint()">Hint</button>
+    <button class="btn-solve" onclick="solveBoardUI()">Solve</button>
+</div>
+
+<script>
+    let board = [];
+    let timerInterval;
+    let seconds = 0;
+
+    // Create the grid inputs
+    const gridEl = document.getElementById('sudoku-grid');
+    for (let i = 0; i < 81; i++) {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.inputMode = 'numeric'; // Forces numeric keypad on iPhone
+        input.oninput = function() { if(this.value.length > 1) this.value = this.value.slice(-1); };
+        gridEl.appendChild(input);
+    }
+
+    function getBoardFromUI() {
+        const inputs = gridEl.querySelectorAll('input');
+        let b = [];
+        for (let i = 0; i < 9; i++) {
+            b.push(Array.from(inputs).slice(i*9, (i+1)*9).map(el => parseInt(el.value) || 0));
+        }
+        return b;
+    }
+
+    function setBoardToUI(b, isNew = false) {
+        const inputs = gridEl.querySelectorAll('input');
+        b.flat().forEach((val, i) => {
+            inputs[i].value = val !== 0 ? val : '';
+            if (isNew && val !== 0) inputs[i].readOnly = true;
+            else if (isNew) { inputs[i].readOnly = false; inputs[i].classList.remove('hint'); }
+        });
+    }
+
+    // --- Sudoku Logic ---
+    function isValid(b, r, c, n) {
+        for (let i = 0; i < 9; i++) {
+            if (b[r][i] === n || b[i][c] === n) return false;
+        }
+        let sr = Math.floor(r / 3) * 3, sc = Math.floor(c / 3) * 3;
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                if (b[sr + i][sc + j] === n) return false;
+            }
+        }
+        return true;
+    }
+
+    function solve(b) {
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                if (b[r][c] === 0) {
+                    let nums = [1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5);
+                    for (let n of nums) {
+                        if (isValid(b, r, c, n)) {
+                            b[r][c] = n;
+                            if (solve(b)) return true;
+                            b[r][c] = 0;
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function newGame() {
+        clearInterval(timerInterval);
+        seconds = 0;
+        document.getElementById('timer').innerText = "00:00";
+        
+        let b = Array.from({length: 9}, () => Array(9).fill(0));
+        solve(b);
+        let clues = parseInt(document.getElementById('difficulty').value);
+        let attempts = 81 - clues;
+        while (attempts > 0) {
+            let r = Math.floor(Math.random()*9), c = Math.floor(Math.random()*9);
+            if (b[r][c] !== 0) { b[r][c] = 0; attempts--; }
+        }
+        setBoardToUI(b, true);
+        startTimer();
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            seconds++;
+            let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            let s = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        }, 1000);
+    }
+
+    function solveBoardUI() {
+        let b = getBoardFromUI();
+        if (solve(b)) {
+            setBoardToUI(b);
+            clearInterval(timerInterval);
+        } else alert("Unsolvable!");
+    }
+
+    function getHint() {
+        let current = getBoardFromUI();
+        let solved = JSON.parse(JSON.stringify(current));
+        if (solve(solved)) {
+            let empties = [];
+            current.forEach((row, r) => row.forEach((val, c) => { if(val === 0) empties.push({r,c}); }));
+            if (empties.length > 0) {
+                let {r, c} = empties[Math.floor(Math.random()*empties.length)];
+                let input = gridEl.querySelectorAll('input')[r * 9 + c];
+                input.value = solved[r][c];
+                input.classList.add('hint');
+            }
+        }
+    }
+
+    function checkMistakes() {
+        let current = getBoardFromUI();
+        let solved = JSON.parse(JSON.stringify(current));
+        // Note: For custom inputs, this checks if current inputs lead to a valid solution
+        if (solve(solved)) {
+            const inputs = gridEl.querySelectorAll('input');
+            current.flat().forEach((val, i) => {
+                if (val !== 0 && val !== solved.flat()[i]) inputs[i].classList.add('error');
+                else inputs[i].classList.remove('error');
+            });
+        }
+    }
+</script>
+</body>
+</html>
