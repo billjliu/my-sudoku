@@ -14,6 +14,13 @@
     * { box-sizing: border-box; }
 
     body { 
+        <div id="success-overlay" style="display: none;">
+            <div class="modal">
+                <h1>Victory! 🏆</h1>
+                <p id="final-time"></p>
+                <button onclick="closeSuccess()">Play Again</button>
+            </div>
+        </div>
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         display: flex; 
         flex-direction: column; 
@@ -101,6 +108,36 @@
 
     .hint { color: #2196f3; font-weight: bold; }
     .error { background-color: #ffebee; color: #d32f2f; }
+
+    #success-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 1000;
+        animation: fadeIn 0.5s ease;
+    }
+
+    .modal {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal h1 { color: #4caf50; margin: 0; font-size: 2rem; }
+    .modal p { font-size: 1.2rem; color: #555; margin: 15px 0; }
+
+    .modal button {
+        background: #4caf50;
+        color: white; border: none; padding: 12px 25px;
+        border-radius: 10px; font-size: 1rem; cursor: pointer;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes popUp { from { transform: scale(0.5); } to { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -132,7 +169,11 @@
         const input = document.createElement('input');
         input.type = 'number';
         input.inputMode = 'numeric'; // Forces numeric keypad on iPhone
-        input.oninput = function() { if(this.value.length > 1) this.value = this.value.slice(-1); };
+        input.oninput = function() { 
+            if(this.value.length > 1) this.value = this.value.slice(-1); 
+            this.classList.remove('error'); // Clear red if they type a new number
+            checkWin(); 
+        };
         gridEl.appendChild(input);
     }
 
@@ -264,8 +305,47 @@
             input.style.fontWeight = 'normal'; // Reset bold clues
         });
     }
+
+    function checkWin() {
+        const current = getBoardFromUI();
+        // Check if every cell is filled
+        if (current.flat().includes(0)) return;
+
+        // Check if the current board is actually correct
+        // We do this by verifying every row, column, and box
+        if (isBoardCorrect(current)) {
+            showSuccess();
+        }
+    }
+
+    function isBoardCorrect(b) {
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                let val = b[r][c];
+                b[r][c] = 0; // Temporarily empty to check validity
+                if (!isValid(b, r, c, val)) {
+                    b[r][c] = val; return false;
+                }
+                b[r][c] = val;
+            }
+        }
+        return true;
+    }
+
+    function showSuccess() {
+        clearInterval(timerInterval);
+        const timeStr = document.getElementById('timer').innerText;
+        document.getElementById('final-time').innerText = `You solved it in ${timeStr}!`;
+        document.getElementById('success-overlay').style.display = 'flex';
+    }
+
+    function closeSuccess() {
+        document.getElementById('success-overlay').style.display = 'none';
+        newGame(); // Start a fresh one
+    }
 </script>
 </body>
 
 </html>
+
 
