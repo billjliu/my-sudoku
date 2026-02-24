@@ -85,6 +85,7 @@
     }
 
     .btn-new { background: #ff9800; grid-column: span 2; } /* Make New Game prominent */
+    .btn-clear { background: #607d8b; /* A neutral blue-gray */}
     .btn-check { background: #e91e63; }
     .btn-hint { background: #2196f3; }
     .btn-solve { background: #4caf50; grid-column: span 2; }
@@ -114,6 +115,7 @@
         <option value="25">Hard</option>
     </select>
     <button class="btn-new" onclick="newGame()">New Game</button>
+    <button class="btn-clear" onclick="clearBoard()">Clear All</button>
     <button class="btn-check" onclick="checkMistakes()">Check</button>
     <button class="btn-hint" onclick="getHint()">Hint</button>
     <button class="btn-solve" onclick="solveBoardUI()">Solve</button>
@@ -246,7 +248,24 @@
             });
         }
     }
+
+    function clearBoard() {
+        // 1. Stop the timer
+        clearInterval(timerInterval);
+        seconds = 0;
+        document.getElementById('timer').innerText = "00:00";
+
+        // 2. Clear every input cell
+        const inputs = gridEl.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.value = '';
+            input.readOnly = false; // Unlock cells in case it was a generated game
+            input.classList.remove('hint', 'error'); // Remove blue/red colors
+            input.style.fontWeight = 'normal'; // Reset bold clues
+        });
+    }
 </script>
 </body>
 
 </html>
+
